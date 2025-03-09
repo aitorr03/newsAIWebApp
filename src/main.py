@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from routers import news_router
-from routers import jwt_auth_users as jwt
+from src.routers import news_router
+from src.routers import jwt_auth_users as jwt
 
 app = FastAPI()
 
