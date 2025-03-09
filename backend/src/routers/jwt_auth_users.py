@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from src.client import db_client
-from src.database.models.user import User
+from backend.src.client import db_client
+from backend.src.database.models.user import User
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
-from src.database.models.user import UserRole
+from backend.src.database.models.user import UserRole
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 10

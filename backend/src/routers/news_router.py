@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
-from src.database.models.news import News
-from src.database.schemas.news_schema import news_schema
-from src.client import db_client
+from backend.src.database.models.news import News
+from backend.src.database.schemas.news_schema import news_schema
+from backend.src.client import db_client
 from bson import ObjectId
 
 news_router = APIRouter(prefix="/news", tags=["News"])

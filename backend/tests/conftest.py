@@ -8,7 +8,7 @@ if project_root not in sys.path:
 
 import pytest
 from fastapi.testclient import TestClient
-from src.main import app
+from backend.src.main import app
 
 
 @pytest.fixture
