@@ -1,12 +1,11 @@
-
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
-from client import db_client
-from database.models.user import User
+from src.client import db_client
+from src.database.models.user import User
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
-from database.models.user import UserRole
+from src.database.models.user import UserRole
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 10
@@ -17,8 +16,9 @@ oauth2 = OAuth2PasswordBearer(tokenUrl="login")
 
 crypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-auth_users = APIRouter(prefix="/users",tags=["Auth Users"])
+auth_users = APIRouter(prefix="/users", tags=["Auth Users"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
 
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
@@ -33,21 +33,30 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if not username:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
 
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
 
     user = db_client.local.users.find_one({"username": username})
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
 
     return user
 
 
 async def is_admin_user(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != UserRole.admin.value:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access forbidden, user is not admin")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden, user is not admin",
+        )
     return current_user
 
 
@@ -55,7 +64,9 @@ async def is_admin_user(current_user: dict = Depends(get_current_user)):
 async def register_user(user: User):
 
     if db_client.local.users.find_one({"username": user.username}):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="User already exists")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail="Username already exists"
+        )
 
     if db_client.local.users.find_one({"email": user.email}):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Email already exists")
@@ -73,6 +84,7 @@ async def register_user(user: User):
         "email": user.email,
         "created_at": user.created_at,
     }
+
 
 @auth_users.post("/login", response_model=dict)
 async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -99,7 +111,7 @@ async def get_user_profile(current_user: dict = Depends(get_current_user)):
         "username": current_user["username"],
         "email": current_user["email"],
         "role": current_user["role"],
-        "created_at": current_user["created_at"]
+        "created_at": current_user["created_at"],
     }
 
 
@@ -112,7 +124,7 @@ async def get_all_users(admin_user: dict = Depends(is_admin_user)):
             "username": user["username"],
             "email": user["email"],
             "role": user["role"],
-            "created_at": user["created_at"]
+            "created_at": user["created_at"],
         }
         for user in users
     ]
