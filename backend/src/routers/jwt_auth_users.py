@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
@@ -9,8 +10,8 @@ from backend.src.database.models.user import UserRole
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 10
-SECRET = "8d2cfb03185fc0eb882d12798f3cb2934552d207728ae3cbcde40f52bfc70760"
 router = APIRouter()
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 oauth2 = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -21,16 +22,20 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 def create_access_token(data: dict, expires_delta: timedelta):
+    if SECRET_KEY is None:
+        raise Exception("Environment variables not loaded correctly")
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
+    if SECRET_KEY is None:
+        raise Exception("Environment variables not loaded correctly")
     try:
-        payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if not username:
             raise HTTPException(
