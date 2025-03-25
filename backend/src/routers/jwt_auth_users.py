@@ -7,12 +7,17 @@ from backend.src.database.models.user import User
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from backend.src.database.models.user import UserRole
+from dotenv import load_dotenv
+from pathlib import Path
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 10
 router = APIRouter()
-SECRET_KEY = os.getenv("SECRET_KEY")
 
+env_path = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(dotenv_path=env_path)
+
+SECRET_KEY = os.getenv("SECRET_KEY")
 oauth2 = OAuth2PasswordBearer(tokenUrl="login")
 
 crypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
