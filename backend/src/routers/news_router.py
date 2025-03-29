@@ -1,26 +1,31 @@
-from fastapi import APIRouter, HTTPException, status
-from backend.src.database.models.news import News
+import pydantic
+from fastapi import APIRouter, HTTPException, status, Body
+from backend.src.database.models.news import News, NewsCategory, get_news_category
 from backend.src.database.schemas.news_schema import news_schema
 from backend.src.client import db_client
 from bson import ObjectId
+from backend.src.services.huggingface_service import (
+    generate_title,
+    generate_summary,
+    classify_news_type,
+)
+from urllib.parse import urlparse
+from pydantic import AnyUrl, TypeAdapter
 
 news_router = APIRouter(prefix="/news", tags=["News"])
 
 
 @news_router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_news(news: News):
+async def create_news(url: str = Body(...), news: str = Body(...)):
 
-    news_url = str(news.url) if news.url else None
+    existing_news = db_client.local.news.find_one({"url": url})
 
-    existing_news = db_client.local.news.find_one({"url": news_url})
+    fake_probability = 0.1
+    fake_result = "Fake"
 
     if existing_news:
-        if news.probability > existing_news["probability"]:
-            update_data = {
-                "result": news.result,
-                "probability": news.probability,
-                "date_analyzed": news.date_analyzed,
-            }
+        if fake_probability > existing_news["probability"]:
+            update_data = {"result": fake_result, "probability": fake_probability}
         else:
             update_data = {}
 
@@ -36,8 +41,27 @@ async def create_news(news: News):
             "query_count": update_data["query_count"],
         }
 
+    title: str = generate_title(news)
+    summary: str = generate_summary(news)
+    category: NewsCategory = classify_news_type(news)
+
+    source = urlparse(url).netloc
+
+    adapter = TypeAdapter(AnyUrl)
+    url_any = adapter.validate_python(url)
+
+    news = News(
+        title=title,
+        summary=summary,
+        category=category,
+        url=url_any,
+        source=source,
+        result=fake_result,
+        probability=fake_probability,
+    )
+
     news_dict = news.model_dump(exclude={"id"})
-    news_dict["url"] = news_url
+    news_dict["url"] = url
 
     result = db_client.local.news.insert_one(news_dict)
 

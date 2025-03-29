@@ -15,11 +15,21 @@ class NewsCategory(str, Enum):
     international = "Internacional"
     events = "Sucesos"
     opinion = "Opinión"
+    environment = "Medio Ambiente"
+    education = "Educación"
+    business = "Negocios"
+
+
+def get_news_category(category_name: str) -> NewsCategory:
+    for category in NewsCategory:
+        if category.value == category_name:
+            return category
+    raise ValueError(f"Unknown category name: {category_name}")
 
 
 class News(BaseModel):
     id: Optional[str] = None
-    title: str = Field(..., min_length=2, max_length=50, description="News title")
+    title: str = Field(..., min_length=10, max_length=30, description="News title")
     summary: str = Field(..., min_length=15, max_length=250, description="News summary")
     category: NewsCategory
     url: Optional[AnyUrl] = Field(None, description="News URL")
