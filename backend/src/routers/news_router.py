@@ -1,14 +1,9 @@
-import pydantic
 from fastapi import APIRouter, HTTPException, status, Body
-from backend.src.database.models.news import News, NewsCategory, get_news_category
+from backend.src.database.models.news import News
 from backend.src.database.schemas.news_schema import news_schema
 from backend.src.client import db_client
 from bson import ObjectId
-from backend.src.services.huggingface_service import (
-    generate_title,
-    generate_summary,
-    classify_news_type,
-)
+from backend.src.services.huggingface_service import analyze_news
 from urllib.parse import urlparse
 from pydantic import AnyUrl, TypeAdapter
 
@@ -41,9 +36,7 @@ async def create_news(url: str = Body(...), news: str = Body(...)):
             "query_count": update_data["query_count"],
         }
 
-    title: str = generate_title(news)
-    summary: str = generate_summary(news)
-    category: NewsCategory = classify_news_type(news)
+    generated_data = analyze_news(news)
 
     source = urlparse(url).netloc
 
@@ -51,9 +44,10 @@ async def create_news(url: str = Body(...), news: str = Body(...)):
     url_any = adapter.validate_python(url)
 
     news = News(
-        title=title,
-        summary=summary,
-        category=category,
+        title=generated_data["title"],
+        summary=generated_data["summary"],
+        primary_category=generated_data["type"]["primary"],
+        secondary_category=generated_data["type"].get("secondary"),
         url=url_any,
         source=source,
         result=fake_result,

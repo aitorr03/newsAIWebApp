@@ -12,12 +12,9 @@ class NewsCategory(str, Enum):
     science = "Ciencia"
     health = "Salud"
     culture = "Cultura y Entretenimiento"
-    international = "Internacional"
-    events = "Sucesos"
     opinion = "Opinión"
     environment = "Medio Ambiente"
     education = "Educación"
-    business = "Negocios"
 
 
 def get_news_category(category_name: str) -> NewsCategory:
@@ -29,9 +26,14 @@ def get_news_category(category_name: str) -> NewsCategory:
 
 class News(BaseModel):
     id: Optional[str] = None
-    title: str = Field(..., min_length=10, max_length=30, description="News title")
-    summary: str = Field(..., min_length=15, max_length=250, description="News summary")
-    category: NewsCategory
+    title: str = Field(..., min_length=10, max_length=75, description="News title")
+    summary: str = Field(
+        ..., min_length=100, max_length=400, description="News summary"
+    )
+    primary_category: NewsCategory = Field(..., description="Primary news category")
+    secondary_category: Optional[NewsCategory] = Field(
+        None, description="Secondary news category (optional)"
+    )
     url: Optional[AnyUrl] = Field(None, description="News URL")
     source: Optional[str] = Field(
         None, max_length=100, description="Source of the news"
