@@ -1,6 +1,7 @@
 import os
 import requests
 from backend.src.database.models.news import NewsCategory
+from backend.src.services.news_service import truncate_text, es_truncate_text
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 
 # Token de HuggingFace
@@ -50,16 +51,29 @@ def es_generate_summary_and_title(text: str, max_length: int, min_length: int) -
         num_beams=4,
         early_stopping=True,
     )
-    return tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+    return es_truncate_text(
+        tokenizer.decode(summary_ids[0], skip_special_tokens=True), 500
+    )
 
 
 def en_generate_summary_and_title(text: str, max_length: int, min_length: int) -> str:
+
+    if max_length < 100:
+        text = (
+            "Summarize the main event of this news article in a concise title: " + text
+        )
+    else:
+        text = "Summarize this news article: " + text
+
     headers = {"Authorization": f"Bearer {HUGGINGFACE_TOKEN}"}
     payload = {
         "inputs": text,
         "parameters": {
             "max_length": max_length,
             "min_length": min_length,
+            "temperature": 0.9,
+            "top_k": 75,
+            "top_p": 0.95,
             "length_penalty": 2.0,
             "num_beams": 4,
             "early_stopping": True,
@@ -70,7 +84,8 @@ def en_generate_summary_and_title(text: str, max_length: int, min_length: int) -
     response.raise_for_status()
     result = response.json()
     if isinstance(result, list) and "summary_text" in result[0]:
-        return result[0]["summary_text"].strip()
+        text = result[0]["summary_text"].strip()
+        return truncate_text(text, max_length)
     else:
         raise Exception(f"Error from Hugging Face API (EN summary): {result}")
 
@@ -129,25 +144,69 @@ def en_classify_news_type(text: str) -> dict:
         # Aplicamos criterios: la score de la segunda debe ser al menos 0.225
         # y la diferencia con la primaria no mayor a 0.075
 
-        if secondary_score >= 0.225 or (primary_score - secondary_score) <= 0.075:
-            secondary_label_key = labels  # No cumple criterio
+        if secondary_score < 0.225 or (primary_score - secondary_score) > 0.075:
+            secondary_label_key = None  # No cumple criterio
 
     mapping = {category.name: category for category in NewsCategory}
 
     primary_category = mapping.get(primary_label_key)
-    secondary_category = (
-        mapping.get(secondary_label_key) if secondary_label_key else None
-    )
+
+    if secondary_label_key is not None:
+        secondary_category = mapping.get(secondary_label_key)
+    else:
+        secondary_category = None
 
     return {"primary": primary_category, "secondary": secondary_category}
+
+
+es_title_model_name = "LeoCordoba/mt5-small-cc-news-es-titles"
+es_title_tokenizer = AutoTokenizer.from_pretrained(es_title_model_name)
+es_title_model = AutoModelForSeq2SeqLM.from_pretrained(es_title_model_name)
+
+
+def es_generate_title(text: str, max_length: int, min_length: int) -> str:
+    inputs = es_title_tokenizer.encode(text, return_tensors="pt", truncation=True)
+    title_ids = es_title_model.generate(
+        inputs,
+        max_length=max_length,
+        min_length=min_length,
+        length_penalty=2.0,
+        num_beams=4,
+        early_stopping=True,
+    )
+    generated_title = es_title_tokenizer.decode(
+        title_ids[0], skip_special_tokens=True
+    ).strip()
+    return es_truncate_text(generated_title, max_length)
+
+
+def en_generate_title(text: str, max_length: int, min_length: int) -> str:
+
+    prompt = (
+        "Generate a concise and informative title for the following news article: "
+        + text
+    )
+    inputs = es_title_tokenizer.encode(prompt, return_tensors="pt", truncation=True)
+    title_ids = es_title_model.generate(
+        inputs,
+        max_length=max_length,
+        min_length=min_length,
+        length_penalty=2.0,
+        num_beams=4,
+        early_stopping=True,
+    )
+    generated_title = es_title_tokenizer.decode(
+        title_ids[0], skip_special_tokens=True
+    ).strip()
+    return truncate_text(generated_title, max_length)
 
 
 def analyze_news(text: str) -> dict:
     language = detect_language(text)
 
     if language == "es":
-        summary = es_generate_summary_and_title(text, max_length=250, min_length=125)
-        title = es_generate_summary_and_title(text, max_length=60, min_length=20)
+        summary = es_generate_summary_and_title(text, max_length=500, min_length=125)
+        title = es_generate_title(text, max_length=125, min_length=10)
         news_type = es_classify_news_type(text)
         return {
             "language": language,
@@ -156,8 +215,8 @@ def analyze_news(text: str) -> dict:
             "type": {"primary": news_type, "secondary": None},
         }
     else:
-        summary = en_generate_summary_and_title(text, max_length=250, min_length=125)
-        title = en_generate_summary_and_title(text, max_length=60, min_length=20)
+        summary = en_generate_summary_and_title(text, max_length=500, min_length=125)
+        title = en_generate_title(text, max_length=125, min_length=10)
         news_type = en_classify_news_type(text)
         return {
             "language": language,

@@ -26,9 +26,9 @@ def get_news_category(category_name: str) -> NewsCategory:
 
 class News(BaseModel):
     id: Optional[str] = None
-    title: str = Field(..., min_length=10, max_length=75, description="News title")
+    title: str = Field(..., min_length=10, max_length=125, description="News title")
     summary: str = Field(
-        ..., min_length=100, max_length=400, description="News summary"
+        ..., min_length=100, max_length=500, description="News summary"
     )
     primary_category: NewsCategory = Field(..., description="Primary news category")
     secondary_category: Optional[NewsCategory] = Field(
