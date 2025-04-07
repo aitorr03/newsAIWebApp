@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body
+from sympy.stats.rv import probability
+
 from backend.src.database.models.news import News
 from backend.src.database.schemas.news_schema import news_schema
 from backend.src.client import db_client
@@ -6,6 +8,7 @@ from bson import ObjectId
 from urllib.parse import urlparse
 from pydantic import AnyUrl, TypeAdapter
 from backend.src.services.ollama_service import analyze_news
+from backend.src.services.news_service import predict_fake_news
 
 news_router = APIRouter(prefix="/news", tags=["News"])
 
@@ -15,12 +18,13 @@ async def create_news(url: str = Body(...), news: str = Body(...)):
 
     existing_news = db_client.local.news.find_one({"url": url})
 
-    fake_probability = 0.1
-    fake_result = "Fake"
+    analyzed_news = predict_fake_news(news)
+    probability: float = analyzed_news["probability"]
+    prediction: str = analyzed_news["prediction"]
 
     if existing_news:
-        if fake_probability > existing_news["probability"]:
-            update_data = {"result": fake_result, "probability": fake_probability}
+        if probability > existing_news["probability"]:
+            update_data = {"result": prediction, "probability": probability}
         else:
             update_data = {}
 
@@ -50,8 +54,8 @@ async def create_news(url: str = Body(...), news: str = Body(...)):
         secondary_category=generated_data.get("secondary_category"),
         url=url_any,
         source=source,
-        result=fake_result,
-        probability=fake_probability,
+        result=prediction,
+        probability=probability,
     )
 
     news_dict = news.model_dump(exclude={"id"})
