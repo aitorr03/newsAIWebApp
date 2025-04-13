@@ -1,10 +1,11 @@
 import React from "react";
-import TopsideNavbar from "../components/TopsideNavbar";
+
+import HomePageContent from "../components/HomePageContent";
 
 const Home = () => {
   return (
     <>
-      <TopsideNavbar />
+      <HomePageContent />
     </>
   );
 };

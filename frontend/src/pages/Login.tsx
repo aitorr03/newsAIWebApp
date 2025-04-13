@@ -1,7 +1,7 @@
-// src/components/Login.tsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
 const Login = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -9,32 +9,37 @@ const Login = () => {
   const [email, setEmail] = useState(""); // Solo para registro
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
   const navigate = useNavigate();
+  const { setUser } = useContext(AuthContext);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (isRegister) {
-      // Lógica de registro
       try {
         const response = await axios.post(
           "http://127.0.0.1:8000/users/register",
           {
-            username: username,
-            email: email,
+            username,
+            email,
             hashed_password: password,
           }
         );
         alert("Usuario registrado correctamente");
-        setIsRegister(false);
+        // Actualizar el contexto con valores por defecto o los obtenidos de la API.
+        setUser({
+          id: response.data.user_id,
+          username,
+          email,
+          role: "usuario",
+          created_at: new Date().toISOString(),
+        });
+        navigate("/profile");
       } catch (err) {
         setError("Error en el registro, verifique los datos");
       }
     } else {
-      // Lógica de login
       try {
-        // Con OAuth2PasswordRequestForm, el back espera un form-url-encoded, por lo que usamos URLSearchParams
         const formData = new URLSearchParams();
         formData.append("username", username);
         formData.append("password", password);
@@ -47,6 +52,14 @@ const Login = () => {
           }
         );
         localStorage.setItem("token", response.data.access_token);
+        // Actualiza el contexto del usuario con valores predeterminados.
+        setUser({
+          id: "123", // Si tienes un valor real, úsalo
+          username,
+          email: "",
+          role: "usuario",
+          created_at: new Date().toISOString(),
+        });
         navigate("/profile");
       } catch (err) {
         setError("Credenciales inválidas");

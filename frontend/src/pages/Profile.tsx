@@ -1,18 +1,12 @@
-// src/components/Profile.tsx
-import React, { useEffect, useState } from "react";
+// src/pages/Profile.tsx
+import React, { useContext, useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
+import UserCard from "../components/UserCard";
 
-interface UserProfile {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-  created_at: string;
-}
-
-const Profile = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
+const Profile: React.FC = () => {
+  const { user, setUser } = useContext(AuthContext);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
@@ -25,18 +19,19 @@ const Profile = () => {
       }
       try {
         const response = await axios.get("http://127.0.0.1:8000/users/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         setUser(response.data);
       } catch (err) {
+        console.error("Error al cargar el perfil:", err);
         setError("Error al cargar el perfil");
       }
     };
 
-    fetchProfile();
-  }, [navigate]);
+    if (!user) {
+      fetchProfile();
+    }
+  }, [navigate, setUser, user]);
 
   if (error) {
     return (
@@ -55,25 +50,8 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-md mx-auto bg-white p-6 rounded shadow">
-        <h2 className="text-2xl font-bold mb-4">Perfil de Usuario</h2>
-        <p>
-          <strong>ID:</strong> {user.id}
-        </p>
-        <p>
-          <strong>Nombre de usuario:</strong> {user.username}
-        </p>
-        <p>
-          <strong>Email:</strong> {user.email}
-        </p>
-        <p>
-          <strong>Rol:</strong> {user.role}
-        </p>
-        <p>
-          <strong>Creado el:</strong> {user.created_at}
-        </p>
-      </div>
+    <div className="min-h-screen flex items-start justify-center pt-40 bg-gray-100">
+      <UserCard user={user!} />
     </div>
   );
 };
