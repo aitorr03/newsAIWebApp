@@ -10,6 +10,8 @@ from backend.src.database.models.user import UserRole
 from dotenv import load_dotenv
 from pathlib import Path
 
+from backend.src.database.schemas.user_schema import user_schema
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 10
 router = APIRouter()
@@ -116,13 +118,7 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @auth_users.get("/me", response_model=dict)
 async def get_user_profile(current_user: dict = Depends(get_current_user)):
-    return {
-        "id": str(current_user["_id"]),
-        "username": current_user["username"],
-        "email": current_user["email"],
-        "role": current_user["role"],
-        "created_at": current_user["created_at"],
-    }
+    return user_schema(current_user)
 
 
 @auth_users.get("/admin", response_model=list)
