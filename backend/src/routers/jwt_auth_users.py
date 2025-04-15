@@ -3,13 +3,13 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from backend.src.client import db_client
-from backend.src.database.models.user import User
+from backend.src.database.models.user import User, RegisterUserRequest
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from backend.src.database.models.user import UserRole
 from dotenv import load_dotenv
 from pathlib import Path
-
+import backend.src.services.user_service as user_service
 from backend.src.database.schemas.user_schema import user_schema
 
 ALGORITHM = "HS256"
@@ -73,28 +73,34 @@ async def is_admin_user(current_user: dict = Depends(get_current_user)):
 
 
 @auth_users.post("/register", response_model=dict)
-async def register_user(user: User):
+async def register_user(user: RegisterUserRequest):
 
-    if db_client.local.users.find_one({"username": user.username}):
+    if user_service.existing_email(user.email):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, detail="Username already exists"
         )
 
-    if db_client.local.users.find_one({"email": user.email}):
+    if user_service.existing_username(user.username):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Email already exists")
 
-    hashed_password = crypt.hash(user.hashed_password)
-    user_dict = user.model_dump(exclude={"id"})
-    user_dict["hashed_password"] = hashed_password
+    hashed_password = crypt.hash(user.password)
 
+    new_user = User(
+        username=user.username.lower(),
+        email=user.email,
+        hashed_password=hashed_password,
+        created_at=datetime.now(timezone.utc),
+    )
+
+    user_dict = user.model_dump(exclude={"id"})
     result = db_client.local.users.insert_one(user_dict)
 
     return {
         "message": "User registered successfully",
         "user_id": str(result.inserted_id),
-        "username": user.username,
-        "email": user.email,
-        "created_at": user.created_at,
+        "username": new_user.username,
+        "email": new_user.email,
+        "created_at": new_user.created_at,
     }
 
 
@@ -119,6 +125,33 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
 @auth_users.get("/me", response_model=dict)
 async def get_user_profile(current_user: dict = Depends(get_current_user)):
     return user_schema(current_user)
+
+
+@auth_users.patch("/me", response_model=dict)
+async def update_user(new_fields: dict, current_user: dict = Depends(get_current_user)):
+
+    if new_fields["username"] != current_user["username"]:
+        if user_service.existing_username(new_fields["username"]):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, detail="Username already exists"
+            )
+        else:
+            new_fields["username"] = new_fields["username"].lower()
+    if new_fields["email"] != current_user["email"]:
+        if user_service.existing_email(new_fields["email"]):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, detail="Email already exists"
+            )
+        else:
+            new_fields["email"] = new_fields["email"].lower()
+
+    if new_fields["hashed_password"] != current_user["hashed_password"]:
+        new_fields["hashed_password"] = crypt.hash(new_fields["hashed_password"])
+
+    updated_user = db_client.local.users.update_one(
+        {"_id": current_user["_id"]}, {"$set": new_fields}
+    )
+    return user_schema(updated_user)
 
 
 @auth_users.get("/admin", response_model=list)
