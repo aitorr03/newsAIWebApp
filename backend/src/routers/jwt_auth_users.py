@@ -3,14 +3,14 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from backend.src.client import db_client
-from backend.src.database.models.user import User, RegisterUserRequest
 from datetime import datetime, timedelta, timezone
-from jose import JWTError, jwt
-from backend.src.database.models.user import UserRole
+from jose import JWTError, jwt, JWTError
+import backend.src.database.models.user as user_class
 from dotenv import load_dotenv
 from pathlib import Path
 import backend.src.services.user_service as user_service
 from backend.src.database.schemas.user_schema import user_schema
+from typing import Optional
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 10
@@ -63,8 +63,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     return user
 
 
+async def get_current_user_optional(
+    token: str = Depends(oauth2_scheme),
+) -> Optional[dict]:
+    if SECRET_KEY is None:
+        raise Exception("Environment variables not loaded correctly")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if not username:
+            return None
+        user = db_client.local.users.find_one({"username": username})
+        return user
+    except JWTError:
+        return None
+
+
 async def is_admin_user(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != UserRole.admin.value:
+    if current_user["role"] != user_class.UserRole.admin.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access forbidden, user is not admin",
@@ -73,7 +89,7 @@ async def is_admin_user(current_user: dict = Depends(get_current_user)):
 
 
 @auth_users.post("/register", response_model=dict)
-async def register_user(user: RegisterUserRequest):
+async def register_user(user: user_class.RegisterUserRequest):
 
     if user_service.existing_email(user.email):
         raise HTTPException(
@@ -85,14 +101,15 @@ async def register_user(user: RegisterUserRequest):
 
     hashed_password = crypt.hash(user.password)
 
-    new_user = User(
-        username=user.username.lower(),
+    new_user = user_class.User(
+        username=user.username,
         email=user.email,
         hashed_password=hashed_password,
-        created_at=datetime.now(timezone.utc),
+        role=user_class.UserRole.user.value,
+        disabled=False,
     )
 
-    user_dict = user.model_dump(exclude={"id"})
+    user_dict = new_user.model_dump(exclude={"id"})
     result = db_client.local.users.insert_one(user_dict)
 
     return {
@@ -128,28 +145,34 @@ async def get_user_profile(current_user: dict = Depends(get_current_user)):
 
 
 @auth_users.patch("/me", response_model=dict)
-async def update_user(new_fields: dict, current_user: dict = Depends(get_current_user)):
+async def update_user(
+    new_fields: user_class.UpdateUserRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    new_data = new_fields.model_dump(exclude_none=True)
 
-    if new_fields["username"] != current_user["username"]:
-        if user_service.existing_username(new_fields["username"]):
+    if "username" in new_data and new_data["username"] != current_user["username"]:
+        if user_service.existing_username(new_data["username"]):
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, detail="Username already exists"
             )
-        else:
-            new_fields["username"] = new_fields["username"].lower()
-    if new_fields["email"] != current_user["email"]:
-        if user_service.existing_email(new_fields["email"]):
+
+    if "email" in new_data and new_data["email"] != current_user["email"]:
+        if user_service.existing_email(new_data["email"]):
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, detail="Email already exists"
             )
-        else:
-            new_fields["email"] = new_fields["email"].lower()
 
-    if new_fields["hashed_password"] != current_user["hashed_password"]:
-        new_fields["hashed_password"] = crypt.hash(new_fields["hashed_password"])
+    if "password" in new_data:
+        hashed_new = crypt.hash(new_data["password"])
+        if hashed_new == current_user["hashed_password"]:
+            new_data.pop("password", None)
+        else:
+            new_data["hashed_password"] = hashed_new
+            new_data.pop("password", None)
 
     updated_user = db_client.local.users.update_one(
-        {"_id": current_user["_id"]}, {"$set": new_fields}
+        {"_id": current_user["_id"]}, {"$set": new_data}
     )
     return user_schema(updated_user)
 

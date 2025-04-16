@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException, status, Body
+from fastapi import APIRouter, HTTPException, status, Body, Depends
 from sympy.stats.rv import probability
-
+from backend.src.database.models.analysis import Analysis
 from backend.src.database.models.news import News
 from backend.src.database.schemas.news_schema import news_schema
 from backend.src.client import db_client
@@ -9,22 +9,31 @@ from urllib.parse import urlparse
 from pydantic import AnyUrl, TypeAdapter
 from backend.src.services.ollama_service import analyze_news
 from backend.src.services.news_service import predict_fake_news
+from backend.src.routers.jwt_auth_users import (
+    get_current_user,
+    get_current_user_optional,
+)
+from backend.src.database.models.user import User
 
 news_router = APIRouter(prefix="/news", tags=["News"])
 
 
 @news_router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_news(url: str = Body(...), news: str = Body(...)):
+async def create_news(
+    url: str = Body(...),
+    news: str = Body(...),
+    current_user: User = Depends(get_current_user_optional),
+):
 
     existing_news = db_client.local.news.find_one({"url": url})
 
     analyzed_news = predict_fake_news(news)
-    probability: float = analyzed_news["probability"]
+    analysis_probability: float = analyzed_news["probability"]
     prediction: str = analyzed_news["prediction"]
 
     if existing_news:
-        if probability > existing_news["probability"]:
-            update_data = {"result": prediction, "probability": probability}
+        if analysis_probability > existing_news["probability"]:
+            update_data = {"result": prediction, "probability": analysis_probability}
         else:
             update_data = {}
 
@@ -34,6 +43,13 @@ async def create_news(url: str = Body(...), news: str = Body(...)):
             {"_id": existing_news["_id"]}, {"$set": update_data}
         )
 
+        if current_user:
+            analysis = Analysis(
+                user_id=str(current_user["_id"]),
+                news_id=str(existing_news["_id"]),
+                result=prediction,
+            )
+            db_client.local.analysis.insert_one(analysis.model_dump(exclude={"id"}))
         return {
             "message": "News already exists, updated query count",
             "news_id": str(existing_news["_id"]),
@@ -55,13 +71,19 @@ async def create_news(url: str = Body(...), news: str = Body(...)):
         url=url_any,
         source=source,
         result=prediction,
-        probability=probability,
+        probability=analysis_probability,
     )
 
     news_dict = news.model_dump(exclude={"id"})
     news_dict["url"] = url
 
     result = db_client.local.news.insert_one(news_dict)
+
+    if current_user:
+        analysis = Analysis(
+            user_id=current_user["_id"], news_id=result.inserted_id, result=prediction
+        )
+        db_client.local.analysis.insert_one(analysis.model_dump(exclude={"id"}))
 
     return {"message": "News created successfully", "news_id": str(result.inserted_id)}
 
