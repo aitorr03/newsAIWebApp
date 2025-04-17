@@ -19,36 +19,56 @@ const Navbar = () => {
   }, [location, setUser]);
 
   return (
-    <div className="navbar bg-[#2C3E50] fixed top-0 left-0 shadow-md flex items-center justify-between h-40">
-      <Link
-        to="/"
-        className="text-3xl font-medium text-gray-100 hover:text-primary-light ml-8"
-      >
-        <NewspaperIcon className="h-14 w-14" />
+    <nav
+      className={`
+        fixed top-0 left-0 bg-[#2C3E50] text-gray-100 shadow-md
+
+        /* Móvil: barra horizontal */
+        w-full h-16 flex items-center justify-around px-4
+
+        /* Escritorio (>= md): barra vertical */
+        md:w-32 md:h-screen md:flex md:flex-col md:justify-start md:py-8
+      `}
+    >
+      {/* Logo / Home */}
+      <Link to="/" className="flex items-center justify-center mb-4">
+        <NewspaperIcon className="h-8 w-8 md:h-12 md:w-12" />
       </Link>
-      <Link
-        to="/stats"
-        className="inline-flex items-center space-x-2 text-3xl font-medium text-gray-100 hover:text-primary-light"
+
+      {/* Enlaces */}
+      <div
+        className={`
+          flex items-center space-x-12
+          md:flex-col md:space-x-0 md:space-y-12 md:mt-8
+        `}
       >
-        <TrophyIcon className="h-8 w-8" />
-        <span>Ranking</span>
-      </Link>
-      {user ? (
         <Link
-          to="/profile"
-          className="text-3xl font-medium text-gray-100 hover:text-primary-light  mr-8"
+          to="/stats"
+          className="flex items-center justify-center hover:text-primary-light"
         >
-          <UserCircleIcon className="h-14 w-14" />
+          <TrophyIcon className="h-8 w-8 md:h-12 md:w-12" />
+          <span className="ml-2 text-lg md:hidden">Ranking</span>
         </Link>
-      ) : (
-        <Link
-          to="/login"
-          className="text-3xl font-medium text-gray-100 hover:text-primary-light mr-8"
-        >
-          Iniciar sesión
-        </Link>
-      )}
-    </div>
+
+        {user ? (
+          <Link
+            to="/profile"
+            className="flex items-center justify-center hover:text-primary-light"
+          >
+            <UserCircleIcon className="h-8 w-8 md:h-12 md:w-12" />
+            <span className="ml-2 text-lg md:hidden">Perfil</span>
+          </Link>
+        ) : (
+          <Link
+            to="/login"
+            className="flex items-center justify-center hover:text-primary-light"
+          >
+            <UserCircleIcon className="h-8 w-8 md:h-12 md:w-12" />
+            <span className="ml-2 text-lg md:hidden">Iniciar sesión</span>
+          </Link>
+        )}
+      </div>
+    </nav>
   );
 };
 
