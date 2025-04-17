@@ -5,7 +5,7 @@ import axios from "axios";
 export interface User {
   id: string;
   username: string;
-  email?: string;
+  email: string;
   role: string;
   created_at: string;
 }
@@ -38,6 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {
+        console.log("Respuesta completa:", response.data);
         setUser(response.data);
       })
       .catch((err) => {

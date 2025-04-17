@@ -22,7 +22,7 @@ const Login = () => {
           {
             username,
             email,
-            hashed_password: password,
+            password: password,
           }
         );
         alert("Usuario registrado correctamente");
@@ -54,7 +54,7 @@ const Login = () => {
         localStorage.setItem("token", response.data.access_token);
         // Actualiza el contexto del usuario con valores predeterminados.
         setUser({
-          id: "123", // Si tienes un valor real, úsalo
+          id: "",
           username,
           email: "",
           role: "usuario",
@@ -68,8 +68,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="max-w-md w-full bg-white p-8 rounded shadow">
+    <div className="flex items-start justify-center ">
+      <div className="bg-gray-100 w-full max-w-2xl mx-auto px-4 pt-10 mt-75 border rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
         <h2 className="text-2xl font-bold text-center mb-6">
           {isRegister ? "Registro" : "Iniciar sesión"}
         </h2>
@@ -109,7 +109,7 @@ const Login = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition"
+            className="w-full bg-[#2C3E50] text-white py-2 rounded hover:bg-blue-600 transition"
           >
             {isRegister ? "Registrar" : "Iniciar sesión"}
           </button>
