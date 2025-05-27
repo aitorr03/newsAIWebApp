@@ -1,4 +1,5 @@
 import React, { useState, FormEvent } from "react";
+import Header from "./Header";
 
 const HomePageContent: React.FC = () => {
   const [newsUrl, setNewsUrl] = useState<string>("");
@@ -12,6 +13,7 @@ const HomePageContent: React.FC = () => {
   return (
     // Container principal que ocupa toda la pantalla y empuja el contenido hacia abajo (pt-40)
     <div className=" flex items-start justify-center ">
+      <Header />
       {/* Contenedor interno para centrar horizontalmente */}
       <div className=" bg-gray-100 w-full max-w-2xl mx-auto px-4 pt-10 mt-75 border rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
         {/* Título principal de la página */}
