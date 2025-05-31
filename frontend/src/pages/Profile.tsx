@@ -41,6 +41,8 @@ const Profile: React.FC = () => {
     );
   }
 
+  console.log("User completo:", user);
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -49,11 +51,7 @@ const Profile: React.FC = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen flex items-start justify-center pt-40 bg-gray-100">
-      <UserCard user={user!} />
-    </div>
-  );
+  return <UserCard user={user} />;
 };
 
 export default Profile;
