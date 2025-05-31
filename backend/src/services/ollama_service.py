@@ -1,7 +1,7 @@
 import json
-import os
 from langchain_ollama import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
+from langdetect import detect
 
 
 llm = OllamaLLM(model="llama3.2")
@@ -11,7 +11,7 @@ Hello, you are an intelligent multilingual news assistant. Your role is to analy
 1. Summarize the article in a clear, coherent, and structured manner.
 2. Generate a concise and informative title that captures the main event of the article.
 3. Classify the article into one or more relevant categories: 
-Política, Economía, Deportes, Tecnología, Ciencia,Salud, Cultura y Entretenimiento, Opinión, Medio Ambiente, Educación.
+Política, Economía, Deportes, Tecnología, Ciencia, Salud, Cultura y Entretenimiento, Opinión, Medio Ambiente, Educación.
 Please note the following requirements:
 - The title must be between 10 and 125 characters.
 - The summary must be between 100 and 500 characters.
@@ -41,3 +41,20 @@ def analyze_news(news_article: str) -> dict:
     except json.JSONDecodeError:
         raise Exception("Failed to parse output as JSON: " + result_text)
     return data
+
+
+translator_llm = OllamaLLM(model="lauchacarro/qwen2.5-translator")
+translate_prompt = ChatPromptTemplate.from_template(
+    "Translate the following news article into clear, fluent English:\n\n{text}"
+)
+
+
+def translate_to_english(text: str) -> str:
+
+    lang = detect(text)
+    if lang.lower() == "en":
+        return text
+
+    translation_chain = translate_prompt | translator_llm
+    result = translation_chain.invoke({"text": text})
+    return result.strip()

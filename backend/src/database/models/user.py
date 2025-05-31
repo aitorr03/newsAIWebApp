@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from fastapi import HTTPException, status
+from pydantic import BaseModel, Field, EmailStr, field_validator, ConfigDict
 from typing import Optional
 from enum import Enum
 from datetime import datetime, timezone
 from backend.src.services.user_service import validate_password, validate_username
+from bson import ObjectId
 
 
 class UserRole(str, Enum):
@@ -12,7 +13,8 @@ class UserRole(str, Enum):
 
 
 class User(BaseModel):
-    id: Optional[str] = None
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    id: Optional[ObjectId] = Field(default=None, alias="_id")
     username: str = Field(
         ...,
         min_length=6,

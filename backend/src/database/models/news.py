@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, AnyUrl
+from pydantic import BaseModel, Field, AnyUrl, ConfigDict
 from typing import Optional
 from enum import Enum
 from datetime import datetime, timezone
+from bson import ObjectId
 
 
 class NewsCategory(str, Enum):
@@ -25,7 +26,8 @@ def get_news_category(category_name: str) -> NewsCategory:
 
 
 class News(BaseModel):
-    id: Optional[str] = None
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    id: Optional[ObjectId] = Field(default=None, alias="_id")
     title: str = Field(..., min_length=10, max_length=125, description="News title")
     summary: str = Field(
         ..., min_length=100, max_length=500, description="News summary"

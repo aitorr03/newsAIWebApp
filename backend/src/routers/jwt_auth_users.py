@@ -1,16 +1,20 @@
 import os
 from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi.params import Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
+from pydantic import AnyUrl, TypeAdapter
 from backend.src.client import db_client
 from datetime import datetime, timedelta, timezone
-from jose import JWTError, jwt, JWTError
+from jose import jwt, JWTError
 import backend.src.database.models.user as user_class
 from dotenv import load_dotenv
 from pathlib import Path
 import backend.src.services.user_service as user_service
 from backend.src.database.schemas.user_schema import user_schema
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from backend.src.database.enums.user_enums import UserHistorySortOptions
+from bson import ObjectId
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 10
@@ -99,6 +103,9 @@ async def register_user(user: user_class.RegisterUserRequest):
     if user_service.existing_username(user.username):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Email already exists")
 
+    url = f"https://robohash.org/{user.username}.png?set=set1&size=200x200"
+    url_class = TypeAdapter(AnyUrl)
+
     hashed_password = crypt.hash(user.password)
 
     new_user = user_class.User(
@@ -171,10 +178,8 @@ async def update_user(
             new_data["hashed_password"] = hashed_new
             new_data.pop("password", None)
 
-    updated_user = db_client.local.users.update_one(
-        {"_id": current_user["_id"]}, {"$set": new_data}
-    )
-    return user_schema(updated_user)
+    db_client.local.users.update_one({"_id": current_user["_id"]}, {"$set": new_data})
+    return {"message": "User updated successfully"}
 
 
 @auth_users.get("/admin", response_model=list)
@@ -190,3 +195,23 @@ async def get_all_users(admin_user: dict = Depends(is_admin_user)):
         }
         for user in users
     ]
+
+
+# Obtener historial de noticias analizadas por el usuario
+@auth_users.get("/me/history", response_model=List[Dict[str, Any]])
+async def get_my_history(
+    sort_by: UserHistorySortOptions = Query(UserHistorySortOptions.date),
+    sort_order: int = Query(-1, ge=-1, le=1),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1),
+    current_user: dict = Depends(get_current_user),
+):
+    searched_user_id = current_user["_id"]
+    if isinstance(searched_user_id, str):
+        searched_user_id = ObjectId(searched_user_id)
+
+    history = user_service.get_user_history(
+        searched_user_id, sort_by, sort_order, page, limit
+    )
+    print(list(db_client.local.analysis.find({"user_id": searched_user_id})))
+    return history
