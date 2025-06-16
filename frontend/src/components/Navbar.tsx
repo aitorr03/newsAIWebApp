@@ -1,89 +1,96 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  UserCircleIcon,
-  NewspaperIcon,
-  TrophyIcon,
+  HomeIcon,
   ArchiveBoxIcon,
-} from "@heroicons/react/24/solid";
+  GlobeEuropeAfricaIcon,
+  UserCircleIcon,
+  ArrowRightStartOnRectangleIcon,
+} from "@heroicons/react/24/outline";
 import { AuthContext } from "../context/AuthContext";
 
-const Navbar: React.FC = () => {
-  const { user, setUser } = useContext(AuthContext);
-  const location = useLocation();
+const navColor = "bg-[#12355B]"; // O usa "bg-indigo-500" si prefieres Tailwind puro
+const iconCircleColor = "bg-[#747bff]"; // Un poco más claro para contraste, o "bg-indigo-400"
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) setUser(null);
-  }, [location, setUser]);
+const navItems = [
+  { to: "/", icon: <HomeIcon />, label: "Inicio" },
+  { to: "/history", icon: <ArchiveBoxIcon />, label: "Historial" },
+  { to: "/news/portal", icon: <GlobeEuropeAfricaIcon />, label: "Noticias" },
+];
+
+const Navbar: React.FC = () => {
+  const { user } = useContext(AuthContext);
+  const location = useLocation();
 
   return (
     <nav
-      className={`
-        fixed top-0 left-0 bg-[#2C3E50] text-gray-100 shadow-md
-        w-full h-16 flex items-center justify-around px-4
-        md:flex md:flex-col md:justify-start md:py-8
-        md:w-26 md:h-screen md:hover:w-64    /* altura completa + expandible */
-        overflow-hidden
-        transition-all duration-300 ease-in-out
-        group                                 /* para group-hover */
-      `}
+      className={`${navColor} fixed left-0 top-0 h-screen w-20 shadow-lg flex flex-col items-center py-8 z-20`}
     >
-      {/* Logo / Home */}
-      <Link to="/" className="flex items-center justify-center mb-4">
-        <NewspaperIcon className="h-8 w-8 md:h-12 md:w-12" />
-        <span
-          className="
-            ml-3 text-base font-medium
-            opacity-0 group-hover:opacity-100 transition-opacity duration-300
-          "
-        >
-          Inicio
-        </span>
+      {/* Logo */}
+      <Link to="/" className="mb-12 flex items-center">
+        <img
+          src="/images/logo1.png"
+          alt="Logo"
+          className="w-10 h-10 rounded-full border-2 border-white shadow"
+        />
       </Link>
-      <div>
-        <ArchiveBoxIcon className="h-8 w-8 md:h-12 md:w-12" />
-        <span
-          className="
-            ml-3 text-base font-medium
-            opacity-0 group-hover:opacity-100 transition-opacity duration-300
-          "
-        >
-          Resultados usuario
-        </span>
+      {/* Nav items */}
+      <div className="flex flex-col gap-8 flex-1">
+        {navItems.map((item) => {
+          const active = location.pathname === item.to;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="flex flex-col items-center group transition"
+            >
+              <div
+                className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md transition-all
+                  ${iconCircleColor} 
+                  ${active ? "ring-2 ring-white" : "opacity-80"}
+                  group-hover:ring-2 group-hover:ring-white`}
+              >
+                {React.cloneElement(item.icon, {
+                  className: `w-6 h-6 ${
+                    active ? "stroke-white" : "stroke-white/80"
+                  }`,
+                })}
+              </div>
+              <span
+                className={`text-xs mt-2 font-medium transition-all 
+                  ${active ? "text-white" : "text-white/80"} 
+                  group-hover:text-white`}
+              >
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
       </div>
-
-      {/* Enlaces */}
-      <div className="flex items-center space-x-8 md:flex-col md:space-x-0 md:space-y-8 md:mt-8">
-        <Link
-          to="/stats"
-          className="flex items-center justify-center hover:text-primary-light"
-        >
-          <TrophyIcon className="h-8 w-8 md:h-12 md:w-12" />
-          <span
-            className="
-              ml-3 text-base font-medium
-              opacity-0 group-hover:opacity-100 transition-opacity duration-300
-            "
-          >
-            Ranking
-          </span>
-        </Link>
-
+      {/* Perfil/Login */}
+      <div className="mt-auto flex flex-col items-center gap-3 mb-2">
         <Link
           to={user ? "/profile" : "/login"}
-          className="flex items-center justify-center hover:text-primary-light"
+          className="flex flex-col items-center"
         >
-          <UserCircleIcon className="h-8 w-8 md:h-12 md:w-12" />
-          <span
-            className="
-              ml-3 text-base font-medium
-              opacity-0 group-hover:opacity-100 transition-opacity duration-300
-            "
+          <div
+            className={`${iconCircleColor} w-11 h-11 rounded-full flex items-center justify-center shadow-md`}
           >
-            {user ? "Perfil" : "Iniciar sesión"}
+            <UserCircleIcon className="w-7 h-7 stroke-white" />
+          </div>
+          <span className="text-xs mt-1 text-white">
+            {user ? "Perfil" : "Acceder"}
           </span>
         </Link>
+        {user && (
+          <button className="mt-2" title="Cerrar sesión">
+            <div
+              className={`${iconCircleColor} w-11 h-11 rounded-full flex items-center justify-center shadow-md`}
+            >
+              <ArrowRightStartOnRectangleIcon className="w-7 h-7 stroke-white" />
+            </div>
+          </button>
+        )}
       </div>
     </nav>
   );
