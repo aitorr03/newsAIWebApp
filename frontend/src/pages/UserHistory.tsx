@@ -1,5 +1,6 @@
+// src/pages/UserHistory.tsx
 import React, { useState, useEffect, useContext } from "react";
-import axios from "axios";
+import { axiosClient } from "../services/axiosClient";
 import { AuthContext } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import {
@@ -7,25 +8,19 @@ import {
   ExclamationCircleIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/solid";
+import { isAxiosError } from "axios";
 
 interface NewsItem {
   id: string;
   title: string;
-  summary: string;
-  primary_category?: string;
-  secondary_category?: string;
-  url?: string;
-  source?: string;
   date_analyzed?: string;
+  primary_category?: string;
   result?: "Fake" | "Real";
   probability?: number;
-  query_count?: number;
 }
 
 interface HistoryItem {
   analysis_id: string;
-  date_analyzed?: string;
-  result?: "Fake" | "Real";
   news?: NewsItem;
 }
 
@@ -33,190 +28,169 @@ const UserHistory: React.FC = () => {
   const { user } = useContext(AuthContext);
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Solo intentamos cargar historial si hay usuario
     if (!user) {
+      setUnauthorized(true);
       setLoading(false);
       return;
     }
 
-    const fetchHistory = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) throw new Error("No se encontró token de autenticación");
+    (async () => {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setUnauthorized(true);
+        setLoading(false);
+        return;
+      }
 
-        const response = await axios.get<HistoryItem[]>(
-          "http://127.0.0.1:8000/users/me/history",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setHistoryList(response.data);
+      try {
+        const res = await axiosClient.get("/api/users/me/history", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setHistoryList(res.data);
       } catch (err: any) {
-        console.error("Error al obtener historial:", err);
-        const msg =
-          err.response?.data?.detail ||
-          err.response?.data?.message ||
-          err.message ||
-          "Ocurrió un error inesperado";
-        setError(msg);
+        if (
+          (isAxiosError(err) && err.response?.status === 401) ||
+          err.message === "No token"
+        ) {
+          setUnauthorized(true);
+        } else {
+          setError(
+            isAxiosError(err)
+              ? err.response?.data?.detail || err.message
+              : err.message
+          );
+        }
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchHistory();
+    })();
   }, [user]);
 
-  // Si todavía estamos “cargando” estado inicial (antes de saber si hay usuario o no)
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600 text-lg">Cargando…</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white">
+        <p className="text-blue-600 text-lg">Cargando historial…</p>
       </div>
     );
   }
 
-  // Si no hay usuario, mostramos el mensaje e invitamos a registrarse
-  if (!user) {
+  if (unauthorized) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <p className="text-gray-700 text-lg mb-4">
-          Debes estar registrado para ver tu historial.
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white p-4">
+        <NewspaperIcon className="h-16 w-16 text-blue-300 mb-4" />
+        <p className="text-blue-700 text-xl mb-4">
+          Para ver tu historial necesitas iniciar sesión.
         </p>
-        <Link
-          to="/login"
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-        >
-          Ir a Registro
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            to="/login"
+            className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+          >
+            Iniciar Sesión
+          </Link>
+          <Link
+            to="/login?mode=register"
+            className="inline-block px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow hover:bg-blue-50 transition"
+          >
+            Regístrate
+          </Link>
+        </div>
       </div>
     );
   }
 
-  // Si hay error al cargar el historial
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <p className="text-red-500 text-center flex items-center">
-          <ExclamationCircleIcon className="h-6 w-6 mr-1 text-red-500" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white p-4">
+        <p className="flex items-center text-red-500">
+          <ExclamationCircleIcon className="h-6 w-6 mr-2" />
           {error}
         </p>
       </div>
     );
   }
 
-  // Si el usuario no ha analizado ninguna noticia aún
-  if (historyList.length === 0) {
+  if (!historyList.length) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <NewspaperIcon className="h-16 w-16 text-gray-400 mb-4" />
-        <p className="text-gray-700 text-lg mb-3">
-          Aún no has analizado ninguna noticia.
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white p-4">
+        <NewspaperIcon className="h-20 w-20 text-blue-200 mb-4" />
+        <p className="text-gray-700 text-lg mb-4">
+          Aún no has analizado noticias.
         </p>
         <Link
           to="/"
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
         >
-          Ir a Analizar noticias
+          Analizar Noticias
         </Link>
       </div>
     );
   }
 
-  // Renderizado de la lista de histórico
   return (
-    <div className="max-w-5xl mx-auto p-4 mt-20">
-      <h1 className="text-2xl font-semibold mb-6 text-center">
-        Mi Historial de Noticias Analizadas
-      </h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {historyList.map((item) => {
-          const news = item.news;
-          return (
-            <div
-              key={item.analysis_id}
-              className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow"
-            >
-              {/* Si no hay noticia asociada, mostramos un mensaje */}
-              {!news ? (
-                <p className="text-red-500 text-center">
-                  No se encontró la noticia asociada
-                </p>
-              ) : (
-                <>
-                  {/* Título de la noticia */}
-                  <h2 className="text-xl font-semibold mb-2 line-clamp-2">
-                    {news.title}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-16 px-4">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl text-blue-700 font-extrabold text-center mb-8">
+          Mi Historial
+        </h1>
+        <ul className="space-y-4">
+          {historyList.map((item) => {
+            const n = item.news!;
+            return (
+              <li
+                key={item.analysis_id}
+                className="bg-white rounded-lg shadow px-6 py-4 flex items-center justify-between hover:shadow-lg transition"
+              >
+                <div>
+                  <h2 className="text-lg font-semibold text-blue-800 line-clamp-1">
+                    {n.title}
                   </h2>
-
-                  {/* Fecha en que se hizo el análisis */}
-                  {item.date_analyzed && (
-                    <p className="text-sm text-gray-500 mb-1">
-                      Analizada:{" "}
-                      {new Date(item.date_analyzed).toLocaleDateString(
-                        "es-ES",
-                        {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
-                    </p>
-                  )}
-
-                  {/* Categoría principal de la noticia */}
-                  {news.primary_category && (
-                    <p className="text-sm text-gray-500 mb-2">
-                      Categoría:{" "}
-                      <span className="capitalize">
-                        {news.primary_category}
-                      </span>
-                    </p>
-                  )}
-
-                  {/* Resumen de la noticia */}
-                  <p className="text-gray-700 text-sm mb-3 line-clamp-3">
-                    {news.summary}
+                  <p className="text-sm text-gray-600">
+                    {n.date_analyzed &&
+                      new Date(n.date_analyzed).toLocaleString("es-ES", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}{" "}
+                    • <span className="capitalize">{n.primary_category}</span>
                   </p>
-
-                  <div className="flex items-center justify-between mt-4">
-                    {/* Badge Falsa / Real según el resultado del análisis (item.result) */}
-                    {item.result === "Fake" ? (
-                      <span className="flex items-center px-2 py-1 bg-red-100 text-red-700 text-sm font-medium rounded">
-                        <ExclamationCircleIcon className="h-4 w-4 mr-1" />
-                        Falsa{" "}
-                        {news.probability !== undefined
-                          ? `(${(news.probability * 100).toFixed(1)}%)`
-                          : ""}
-                      </span>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <span
+                    className={`flex items-center px-2 py-1 rounded-full text-sm font-medium ${
+                      n.result === "Fake"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-green-100 text-green-700"
+                    }`}
+                  >
+                    {n.result === "Fake" ? (
+                      <ExclamationCircleIcon className="h-4 w-4 mr-1" />
                     ) : (
-                      <span className="flex items-center px-2 py-1 bg-green-100 text-green-700 text-sm font-medium rounded">
-                        <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        Real{" "}
-                        {news.probability !== undefined
-                          ? `(${((1 - news.probability) * 100).toFixed(1)}%)`
-                          : ""}
-                      </span>
+                      <CheckCircleIcon className="h-4 w-4 mr-1" />
                     )}
-
-                    {/* Enlace a la página de detalle de la noticia */}
-                    <Link
-                      to={`/news/${news.id}`}
-                      className="text-blue-500 hover:underline text-sm"
-                    >
-                      Ver detalle →
-                    </Link>
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
+                    {n.result}
+                    {n.probability
+                      ? ` (${(n.probability * 100).toFixed(1)}%)`
+                      : ""}
+                  </span>
+                  <Link
+                    to={`/news/${n.id}`}
+                    className="text-blue-600 hover:underline font-semibold"
+                  >
+                    Ver
+                  </Link>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </div>
   );

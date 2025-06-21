@@ -1,12 +1,13 @@
+// src/pages/Login.tsx
 import React, { useState, useContext } from "react";
-import axios from "axios";
+import { axiosClient } from "../services/axiosClient";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
-const Login = () => {
+const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState(""); // Solo para registro
+  const [email, setEmail] = useState(""); // solo para registro
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -15,44 +16,31 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (isRegister) {
-      try {
-        const response = await axios.post(
+
+    try {
+      if (isRegister) {
+        const resp = await axiosClient.post(
           "http://127.0.0.1:8000/users/register",
-          {
-            username,
-            email,
-            password: password,
-          }
+          { username, email, password }
         );
-        alert("Usuario registrado correctamente");
-        // Actualizar el contexto con valores por defecto o los obtenidos de la API.
+        alert("¡Registro exitoso!");
         setUser({
-          id: response.data.user_id,
+          id: resp.data.user_id,
           username,
           email,
           role: "usuario",
           created_at: new Date().toISOString(),
         });
-        navigate("/profile");
-      } catch (err) {
-        setError("Error en el registro, verifique los datos");
-      }
-    } else {
-      try {
-        const formData = new URLSearchParams();
-        formData.append("username", username);
-        formData.append("password", password);
-
-        const response = await axios.post(
+      } else {
+        const form = new URLSearchParams();
+        form.append("username", username);
+        form.append("password", password);
+        const resp = await axiosClient.post(
           "http://127.0.0.1:8000/users/login",
-          formData,
-          {
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          }
+          form,
+          { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
         );
-        localStorage.setItem("token", response.data.access_token);
-        // Actualiza el contexto del usuario con valores predeterminados.
+        localStorage.setItem("token", resp.data.access_token);
         setUser({
           id: "",
           username,
@@ -60,81 +48,108 @@ const Login = () => {
           role: "usuario",
           created_at: new Date().toISOString(),
         });
-        navigate("/profile");
-      } catch (err) {
-        setError("Credenciales inválidas");
       }
+      navigate("/profile");
+    } catch {
+      setError(isRegister ? "Error en el registro" : "Credenciales inválidas");
     }
   };
 
   return (
-    <div className="flex items-start justify-center ">
-      <div className="bg-gray-100 w-full max-w-2xl mx-auto px-4 pt-10 mt-75 border rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
-        <h2 className="text-2xl font-bold text-center mb-6">
-          {isRegister ? "Registro" : "Iniciar sesión"}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white/90 backdrop-blur-md rounded-2xl shadow-xl p-8">
+        <h2 className="text-3xl font-extrabold text-blue-700 text-center mb-6">
+          {isRegister ? "Crea tu cuenta" : "Inicia sesión"}
         </h2>
-        {error && <div className="mb-4 text-red-500">{error}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700">Nombre de usuario</label>
+
+        {error && (
+          <div className="mb-4 text-center text-red-600 font-medium">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-blue-800 mb-1">
+              Nombre de usuario
+            </label>
             <input
               type="text"
+              required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              required
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring"
+              className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
+
           {isRegister && (
-            <div className="mb-4">
-              <label className="block text-gray-700">Email</label>
+            <div>
+              <label className="block text-sm font-medium text-blue-800 mb-1">
+                Email
+              </label>
               <input
                 type="email"
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring"
+                className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
               />
             </div>
           )}
-          <div className="mb-6">
-            <label className="block text-gray-700">Contraseña</label>
+
+          <div>
+            <label className="block text-sm font-medium text-blue-800 mb-1">
+              Contraseña
+            </label>
             <input
               type="password"
+              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring"
+              className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
+
           <button
             type="submit"
-            className="w-full bg-[#2C3E50] text-white py-2 rounded hover:bg-blue-600 transition"
+            disabled={!username || !password || (isRegister && !email)}
+            className={`
+              w-full py-2
+              bg-blue-600 hover:bg-blue-700
+              text-white font-semibold rounded-lg shadow transition
+              disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed
+              disabled:border disabled:border-gray-300
+              disabled:hover:bg-gray-100
+            `}
           >
             {isRegister ? "Registrar" : "Iniciar sesión"}
           </button>
         </form>
-        <div className="mt-4 text-center">
+
+        {/* Toggle register / login */}
+        <div className="mt-6 text-center text-sm text-gray-600">
           {isRegister ? (
-            <span>
+            <>
               ¿Ya tienes cuenta?{" "}
               <button
+                type="button"
                 onClick={() => setIsRegister(false)}
-                className="text-blue-500 hover:underline"
+                className="text-blue-600 hover:underline font-semibold"
               >
-                Iniciar sesión
+                Inicia sesión
               </button>
-            </span>
+            </>
           ) : (
-            <span>
+            <>
               ¿No tienes cuenta?{" "}
               <button
+                type="button"
                 onClick={() => setIsRegister(true)}
-                className="text-blue-500 hover:underline"
+                className="text-blue-600 hover:underline font-semibold"
               >
-                Registrarse
+                Regístrate
               </button>
-            </span>
+            </>
           )}
         </div>
       </div>

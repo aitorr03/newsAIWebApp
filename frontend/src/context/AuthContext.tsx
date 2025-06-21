@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, ReactNode } from "react";
-import axios from "axios";
+import { axiosClient } from "../services/axiosClient";
 
 export interface User {
   id: string;
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return;
     }
 
-    axios
+    axiosClient
       .get("http://127.0.0.1:8000/users/me", {
         headers: { Authorization: `Bearer ${token}` },
       })

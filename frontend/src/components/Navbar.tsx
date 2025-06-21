@@ -82,15 +82,6 @@ const Navbar: React.FC = () => {
             {user ? "Perfil" : "Acceder"}
           </span>
         </Link>
-        {user && (
-          <button className="mt-2" title="Cerrar sesión">
-            <div
-              className={`${iconCircleColor} w-11 h-11 rounded-full flex items-center justify-center shadow-md`}
-            >
-              <ArrowRightStartOnRectangleIcon className="w-7 h-7 stroke-white" />
-            </div>
-          </button>
-        )}
       </div>
     </nav>
   );
