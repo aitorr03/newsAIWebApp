@@ -1,5 +1,5 @@
 import React, { useState, useContext, FormEvent } from "react";
-import axios from "axios";
+import { axiosClient } from "../services/axiosClient";
 import { UserCircleIcon } from "@heroicons/react/24/solid";
 import { AuthContext, User } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -39,7 +39,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
       const payload: any = { username, email };
       if (password.trim()) payload.hashed_password = password;
 
-      const response = await axios.patch(
+      const response = await axiosClient.patch(
         `http://127.0.0.1:8000/users/me`,
         payload,
         {
