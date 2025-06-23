@@ -15,15 +15,15 @@ from backend.src.database.schemas.user_schema import user_schema
 from typing import Optional, List, Dict, Any
 from backend.src.database.enums.user_enums import UserHistorySortOptions
 from bson import ObjectId
+from fastapi import Request, Query
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 10
-router = APIRouter()
 
 env_path = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(dotenv_path=env_path)
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY") or "testsecret"
 oauth2 = OAuth2PasswordBearer(tokenUrl="login")
 
 crypt = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -67,19 +67,24 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     return user
 
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
+
+
 async def get_current_user_optional(
-    token: str = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
 ) -> Optional[dict]:
-    if SECRET_KEY is None:
-        raise Exception("Environment variables not loaded correctly")
+    # Si no llega token, devolvemos None y dejamos que el endpoint lo interprete
+    if not token:
+        return None
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if not username:
             return None
-        user = db_client.local.users.find_one({"username": username})
-        return user
+        return db_client.local.users.find_one({"username": username})
     except JWTError:
+        # Token inválido o expirado → devolvemos None
         return None
 
 
@@ -102,9 +107,6 @@ async def register_user(user: user_class.RegisterUserRequest):
 
     if user_service.existing_username(user.username):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Email already exists")
-
-    url = f"https://robohash.org/{user.username}.png?set=set1&size=200x200"
-    url_class = TypeAdapter(AnyUrl)
 
     hashed_password = crypt.hash(user.password)
 
@@ -129,20 +131,28 @@ async def register_user(user: user_class.RegisterUserRequest):
 
 
 @auth_users.post("/login", response_model=dict)
-async def login_user(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = db_client.local.users.find_one({"username": form_data.username})
+async def login_user(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
+    # 1) intenta leer JSON
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
 
-    if not user:
+    username = body.get("username") or form_data.username
+    password = body.get("password") or form_data.password
+
+    user = db_client.local.users.find_one({"username": username})
+    if not user or not crypt.verify(password, user["hashed_password"]):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
 
-    if not crypt.verify(form_data.password, user["hashed_password"]):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
-
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["username"]}, expires_delta=access_token_expires
+        data={"sub": username},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-
     return {"access_token": access_token, "token_type": "bearer"}
 
 

@@ -32,7 +32,7 @@ class User(BaseModel):
 class RegisterUserRequest(BaseModel):
     username: str
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=5, max_length=15)
 
     @field_validator("username")
     def check_username(cls, username):

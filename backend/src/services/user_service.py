@@ -15,8 +15,8 @@ def validate_username(username: str) -> str:
 
 
 def validate_password(password: str) -> str:
-    if not (6 <= len(password) <= 15):
-        raise ValueError("Password must be between 6 and 15 characters")
+    if not (5 <= len(password) <= 15):
+        raise ValueError("Password must be between 5 and 15 characters")
     if not any(c.islower() for c in password):
         raise ValueError("Password must contain at least one lowercase letter")
     if not any(c.isupper() for c in password):

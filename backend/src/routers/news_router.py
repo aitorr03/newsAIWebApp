@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body, Depends
+from pydantic import AnyUrl
+
 from backend.src.database.schemas.news_schema import news_schema
 from backend.src.client import db_client
 from bson import ObjectId
@@ -13,11 +15,11 @@ news_router = APIRouter(prefix="/news", tags=["News"])
 
 @news_router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_news(
-    url: str = Body(...),
+    url: AnyUrl = Body(...),
     news: str = Body(...),
     current_user: dict = Depends(get_current_user_optional),
 ):
-    return NewsManagerService.create_or_update(url, news, current_user)
+    return NewsManagerService.create_or_update(str(url), news, current_user)
 
 
 @news_router.get("/{news_id}", response_model=dict)

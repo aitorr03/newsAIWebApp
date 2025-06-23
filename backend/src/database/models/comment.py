@@ -13,6 +13,9 @@ class Comment(BaseModel):
     user_id: Optional[ObjectId] = Field(
         ..., description="ID of the user who wrote the comment"
     )
+    user_username: str = Field(
+        ..., max_length=20, description="Username of the user who wrote the comment"
+    )
     news_id: ObjectId = Field(..., description="ID of the news article")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),

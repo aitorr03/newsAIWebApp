@@ -39,7 +39,7 @@ async def get_news_comments(
     return comments
 
 
-@comments_router.post("/", status_code=status.HTTP_201_CREATED)
+@comments_router.post("/", response_model=Comment, status_code=status.HTTP_201_CREATED)
 async def create_comment(
     news_id: str = Body(...),
     text: str = Body(..., min_length=1, max_length=1000),
@@ -48,12 +48,16 @@ async def create_comment(
     new_comment = {
         "news_id": ObjectId(news_id),
         "user_id": ObjectId(current_user["_id"]),
+        "user_username": current_user["username"],
         "text": text,
+        "created_at": datetime.now(timezone.utc),
     }
     created = db_client.local.comments.insert_one(new_comment)
     if not created.acknowledged:
         raise HTTPException(500, "Error creando comentario")
-    return {"_id": str(created.inserted_id)}
+
+    created_doc = db_client.local.comments.find_one({"_id": created.inserted_id})
+    return Comment.model_validate(created_doc)
 
 
 @comments_router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)

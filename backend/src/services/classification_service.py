@@ -3,34 +3,13 @@ from keras._tf_keras.keras.models import load_model
 from keras.src.utils import pad_sequences
 from langdetect import detect, DetectorFactory
 
-# Cargar el modelo y el tokenizer
-model: load_model = load_model("backend/src/fake_news_model.keras")
-with open("backend/src/tokenizer.pickle", "rb") as handle:
-    tokenizer = pickle.load(handle)
-
-
-def predict_fake_news(text: str) -> dict:
-    try:
-
-        if not isinstance(text, str):
-            text = str(text)
-        sequence = tokenizer.texts_to_sequences([text])
-        padded_seq = pad_sequences(
-            sequence, maxlen=200, padding="post", truncating="post"
-        )
-
-        # Obtener la probabilidad del modelo
-        probability = model.predict(padded_seq)[0][0]
-
-        # Definir el umbral
-        label = "Fake" if probability >= 0.5 else "Real"
-
-        return {"prediction": label, "probability": probability}
-    except Exception as e:
-        return {"error": str(e)}
-
-
+# Carga una semilla para determinismo
 DetectorFactory.seed = 0
+
+# --- Carga de modelo y tokenizer ---
+model = load_model("backend/src/model_keras.keras")
+with open("backend/src/tokenizer.pkl", "rb") as f:
+    tokenizer = pickle.load(f)
 
 
 def detect_language(text: str) -> str:
@@ -38,3 +17,31 @@ def detect_language(text: str) -> str:
         return detect(text)
     except Exception:
         return "en"
+
+
+def predict_fake_news(text: str) -> dict:
+    try:
+        # Asegurarnos de trabajar con str
+        if not isinstance(text, str):
+            text = str(text)
+
+        # Tokenización + padding
+        seq = tokenizer.texts_to_sequences([text])
+        padded = pad_sequences(seq, maxlen=375, padding="post", truncating="post")
+
+        # Inferencia
+        raw_prob = float(model.predict(padded)[0][0])  # 0–1
+
+        # Ajuste si no es inglés y prob < 0.75
+        lang = detect_language(text)
+        if lang != "en" and raw_prob < 0.65:
+            adj_prob = min(raw_prob * 1.5, 1.0)
+        else:
+            adj_prob = raw_prob
+
+        # Etiquetado con umbral 0.5
+        label = "Real" if adj_prob >= 0.5 else "Fake"
+
+        return {"prediction": label, "probability": adj_prob}
+    except Exception as e:
+        return {"error": str(e)}
