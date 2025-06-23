@@ -1,4 +1,3 @@
-// src/pages/Profile.tsx
 import React, { useContext, useEffect, useState } from "react";
 import { axiosClient } from "../services/axiosClient";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +18,9 @@ const Profile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
+  // Nuevo estado: ¿hemos inicializado el form ya?
+  const [formInitialized, setFormInitialized] = useState(false);
+
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem("token");
@@ -27,18 +29,19 @@ const Profile: React.FC = () => {
         return;
       }
       try {
-        const resp = await axiosClient.get(
-          "http://127.0.0.1:8000/api/users/me",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setUser(resp.data);
-        setForm({
-          username: resp.data.username,
-          email: resp.data.email,
-          password: "",
+        const resp = await axiosClient.get("/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
         });
+        setUser(resp.data);
+        // Solo setea el form si no lo hemos hecho ya
+        if (!formInitialized) {
+          setForm({
+            username: resp.data.username,
+            email: resp.data.email,
+            password: "",
+          });
+          setFormInitialized(true);
+        }
       } catch {
         setError("No se pudo cargar tu perfil.");
       } finally {
@@ -46,7 +49,22 @@ const Profile: React.FC = () => {
       }
     };
     fetchProfile();
+    // Solo depende de navigate y setUser, no de user ni form
+    // eslint-disable-next-line
   }, [navigate, setUser]);
+
+  // Si cambias de usuario, resetea el formulario
+  useEffect(() => {
+    if (user && !formInitialized) {
+      setForm({
+        username: user.username,
+        email: user.email,
+        password: "",
+      });
+      setFormInitialized(true);
+    }
+    // eslint-disable-next-line
+  }, [user]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -62,7 +80,7 @@ const Profile: React.FC = () => {
       };
       if (form.password) payload.password = form.password;
 
-      await axiosClient.patch("http://127.0.0.1:8000/api/users/me", payload, {
+      await axiosClient.patch("/users/me", payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUser({ ...user!, username: form.username, email: form.email });
@@ -158,13 +176,11 @@ const Profile: React.FC = () => {
             <button
               onClick={save}
               disabled={saving}
-              className={`
-                w-full flex justify-center items-center gap-2 py-2
+              className={`w-full flex justify-center items-center gap-2 py-2
                 bg-green-600 hover:bg-green-700 text-white
                 border border-green-700 rounded-lg shadow-md
                 focus:outline-none focus:ring-2 focus:ring-green-400
-                transition ${saving ? "opacity-50 cursor-not-allowed" : ""}
-              `}
+                transition ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <CheckCircleIcon className="h-5 w-5" />
               {saving ? "Guardando…" : "Guardar cambios"}
@@ -183,7 +199,6 @@ const Profile: React.FC = () => {
               </h3>
               <p className="text-sm text-gray-600">{user.email}</p>
             </div>
-            {/* Único cambio: botón Cerrar sesión menos chillón */}
             <button
               onClick={handleLogout}
               className="

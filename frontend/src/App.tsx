@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Navbar from "./components/Navbar";
-import NavbarHorizontal from "./components/NavbarHorizontal";
 import { AuthProvider } from "./context/AuthContext";
 import UserHistory from "./pages/UserHistory";
 import NewsPortal from "./pages/NewsPortal";

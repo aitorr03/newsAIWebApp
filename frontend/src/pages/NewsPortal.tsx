@@ -1,6 +1,7 @@
 // src/pages/NewsPortal.tsx
 import React, { useState, useEffect, ChangeEvent } from "react";
 import { axiosClient } from "../services/axiosClient";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowUpIcon,
@@ -136,9 +137,10 @@ const NewsPortal: React.FC = () => {
         if (primaryCategory) params.primary_category = primaryCategory;
         if (resultFilter) params.result = resultFilter;
 
-        const res = await axiosClient.get<NewsItem[]>("/api/stats/news", {
-          params,
-        });
+        const res = await axios.get<NewsItem[]>(
+          "http://127.0.0.1:8000/stats/news",
+          { params }
+        );
         setNewsList(res.data || []);
         setHasMore((res.data?.length || 0) === limit);
         const total = parseInt(res.headers["x-total-count"] || "0", 10);

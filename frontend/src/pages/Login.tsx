@@ -1,9 +1,8 @@
 // src/pages/Login.tsx
 import React, { useState, useContext } from "react";
-import { axiosClient } from "../services/axiosClient";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-
+import axios from "axios";
 const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState("");
@@ -19,10 +18,12 @@ const Login: React.FC = () => {
 
     try {
       if (isRegister) {
-        const resp = await axiosClient.post(
-          "http://127.0.0.1:8000/users/register",
-          { username, email, password }
-        );
+        // Registro
+        const resp = await axios.post("http://127.0.0.1:8000/users/register", {
+          username,
+          email,
+          password,
+        });
         alert("¡Registro exitoso!");
         setUser({
           id: resp.data.user_id,
@@ -32,14 +33,19 @@ const Login: React.FC = () => {
           created_at: new Date().toISOString(),
         });
       } else {
+        // Login
         const form = new URLSearchParams();
         form.append("username", username);
         form.append("password", password);
-        const resp = await axiosClient.post(
+
+        const resp = await axios.post(
           "http://127.0.0.1:8000/users/login",
           form,
-          { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+          {
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          }
         );
+
         localStorage.setItem("token", resp.data.access_token);
         setUser({
           id: "",
@@ -50,7 +56,7 @@ const Login: React.FC = () => {
         });
       }
       navigate("/profile");
-    } catch {
+    } catch (err: any) {
       setError(isRegister ? "Error en el registro" : "Credenciales inválidas");
     }
   };
@@ -113,20 +119,12 @@ const Login: React.FC = () => {
           <button
             type="submit"
             disabled={!username || !password || (isRegister && !email)}
-            className={`
-              w-full py-2
-              bg-blue-600 hover:bg-blue-700
-              text-white font-semibold rounded-lg shadow transition
-              disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed
-              disabled:border disabled:border-gray-300
-              disabled:hover:bg-gray-100
-            `}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
           >
             {isRegister ? "Registrar" : "Iniciar sesión"}
           </button>
         </form>
 
-        {/* Toggle register / login */}
         <div className="mt-6 text-center text-sm text-gray-600">
           {isRegister ? (
             <>

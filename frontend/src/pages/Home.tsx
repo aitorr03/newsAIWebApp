@@ -1,5 +1,6 @@
 // src/pages/Home.tsx
 import React, { useState, FormEvent } from "react";
+import { axiosClient } from "../services/axiosClient";
 
 interface NewsResponse {
   id: string;
@@ -33,25 +34,17 @@ const Home: React.FC = () => {
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
+      if (token) headers.Authorization = `Bearer ${token}`;
 
-      const res = await fetch("/news/", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ url: newsUrl, news: newsText }),
-      });
+      const { data } = await axiosClient.post<NewsResponse>(
+        "/news/",
+        { url: newsUrl, news: newsText },
+        { headers }
+      );
 
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || res.statusText);
-      }
-
-      const data: NewsResponse = await res.json();
       setNews(data);
     } catch (err: any) {
-      setError(err.message || "Error inesperado");
+      setError(err.response?.data?.detail || err.message || "Error inesperado");
     } finally {
       setLoading(false);
     }

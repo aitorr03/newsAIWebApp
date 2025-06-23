@@ -9,7 +9,7 @@ import {
   PencilSquareIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/solid";
-
+import axios from "axios";
 interface News {
   id: string;
   title: string;
@@ -54,7 +54,7 @@ const NewsDetail: React.FC = () => {
     (async () => {
       setLoadingNews(true);
       try {
-        const res = await axiosClient.get<News>(`api/news/${id}`);
+        const res = await axios.get<News>(`http://127.0.0.1:8000/news/${id}`);
         setNews(res.data);
       } catch {
         setError("No se pudo cargar la noticia.");
@@ -67,12 +67,15 @@ const NewsDetail: React.FC = () => {
     (async () => {
       setLoadingComments(true);
       try {
-        const res = await axiosClient.get<Comment[]>("api/comments/", {
-          params: { news_id: id, page: 1, limit: 50 },
-        });
+        const res = await axios.get<Comment[]>(
+          "http://127.0.0.1:8000/comments/",
+          {
+            params: { news_id: id, page: 1, limit: 50 },
+          }
+        );
         setComments(res.data);
       } catch {
-        // Silenciar
+        // Silenciar error
       } finally {
         setLoadingComments(false);
       }
@@ -84,11 +87,13 @@ const NewsDetail: React.FC = () => {
     if (!newComment.trim() || !user) return;
     setSubmitting(true);
     try {
-      const res = await axiosClient.post<Comment>(
-        "api/comments/",
+      const res = await axios.post<Comment>(
+        "http://127.0.0.1:8000/comments/",
         { news_id: id, text: newComment },
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         }
       );
       setComments([res.data, ...comments]);
@@ -99,7 +104,6 @@ const NewsDetail: React.FC = () => {
       setSubmitting(false);
     }
   };
-
   const startEdit = (c: Comment) => {
     setEditingId(c.id);
     setEditText(c.text);
@@ -114,7 +118,7 @@ const NewsDetail: React.FC = () => {
     if (!editText.trim() || !user) return;
     try {
       const res = await axiosClient.patch<Comment>(
-        `api/comments/${cid}`,
+        `/comments/${cid}`,
         { text: editText },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -263,7 +267,7 @@ const NewsDetail: React.FC = () => {
             )}
           </form>
 
-          {/* Loader comentarios */}
+          {/* Loader o estado vacío */}
           {loadingComments ? (
             <p className="text-gray-600 text-center">Cargando comentarios…</p>
           ) : comments.length === 0 ? (
@@ -306,7 +310,7 @@ const NewsDetail: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    {/* Botón editar */}
+                    {/* Sólo aparece el lápiz en tus propios comentarios */}
                     {user && c.user_id === user.id && editingId !== c.id && (
                       <button
                         onClick={() => startEdit(c)}
@@ -318,7 +322,7 @@ const NewsDetail: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Vista / edición */}
+                  {/* Si editingId coincide, muestro textarea, si no, el texto */}
                   {editingId === c.id ? (
                     <div className="space-y-2">
                       <textarea

@@ -48,7 +48,7 @@ const UserHistory: React.FC = () => {
       }
 
       try {
-        const res = await axiosClient.get("/api/users/me/history", {
+        const res = await axiosClient.get("/users/me/history", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setHistoryList(res.data);
