@@ -18,31 +18,25 @@ from backend.src.database.schemas.news_schema import news_schema
 class NewsManagerService:
     @staticmethod
     def create_or_update(url: str, text: str, current_user: Optional[dict]) -> Dict:
-        # 1) Detectar idioma y traducir si hace falta
         language = detect_language(text)
         english_text = text if language == "en" else translate_to_english(text)
 
-        # 2) Clasificación real/fake
         classification = predict_fake_news(english_text)
         prediction, probability = (
             classification["prediction"],
             classification["probability"],
         )
 
-        # 3) Normalizar URL
         source, url_any = NewsManagerService._normalize_url(url)
 
-        # 4) ¿Ya existe?
         existing = db_client.local.news.find_one({"url": url})
         if existing:
             return NewsManagerService._update_existing(
                 existing, prediction, probability, current_user
             )
 
-        # 5) Extraer título, resumen y categorías con Ollama
         analysis_data = analyze_news(english_text)
 
-        # 6) Crear nuevo
         return NewsManagerService._create_new(
             url, url_any, source, analysis_data, prediction, probability, current_user
         )
@@ -60,20 +54,17 @@ class NewsManagerService:
         probability: float,
         current_user: Optional[dict],
     ) -> Dict:
-        # Incrementar contador y, si mejora probabilidad, actualizar resultado
         updates: Dict = {"query_count": existing.get("query_count", 0) + 1}
         if probability > existing.get("probability", 0):
             updates.update({"result": prediction, "probability": probability})
 
         db_client.local.news.update_one({"_id": existing["_id"]}, {"$set": updates})
 
-        # Registrar en historial si hay usuario
         if current_user:
             NewsManagerService._log_analysis(
                 current_user.get("_id"), existing["_id"], prediction
             )
 
-        # Recuperar y serializar la noticia actualizada
         updated = db_client.local.news.find_one({"_id": existing["_id"]})
         return news_schema(updated)
 
@@ -87,15 +78,12 @@ class NewsManagerService:
         probability: float,
         current_user: Optional[dict],
     ) -> Dict:
-        # Limpiar categoría secundaria
         secondary = analysis_data.get("secondary_category")
         if isinstance(secondary, str) and secondary.lower() in {"none", "null"}:
             secondary = None
 
-        # Hora de análisis
         now = datetime.now(timezone.utc)
 
-        # Construir documento Mongo
         doc = {
             "title": analysis_data["title"],
             "summary": analysis_data["summary"],
@@ -106,20 +94,18 @@ class NewsManagerService:
             "result": prediction,
             "probability": probability,
             "query_count": 1,
-            "date_analyzed": now,  # <-- lo añadimos aquí
+            "date_analyzed": now,
         }
 
         insert_result = db_client.local.news.insert_one(doc)
         if not insert_result.acknowledged:
             raise Exception("No se pudo insertar la noticia en la base de datos")
 
-        # Registrar en historial
         if current_user:
             NewsManagerService._log_analysis(
                 current_user.get("_id"), insert_result.inserted_id, prediction
             )
 
-        # Recuperar y serializar el documento completo
         created = db_client.local.news.find_one({"_id": insert_result.inserted_id})
         return news_schema(created)
 

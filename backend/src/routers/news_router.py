@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body, Depends
 from pydantic import AnyUrl
-
+from backend.src.routers.jwt_auth_users import is_admin_user
 from backend.src.database.schemas.news_schema import news_schema
 from backend.src.client import db_client
 from bson import ObjectId
@@ -36,7 +36,7 @@ async def get_news_by_id(news_id: str):
 
 
 @news_router.delete("/{news_id}", response_model=dict)
-async def delete_news(news_id: str):
+async def delete_news(news_id: str, admin_user: dict = Depends(is_admin_user)):
 
     selected_news = db_client.local.news.delete_one({"_id": ObjectId(news_id)})
 

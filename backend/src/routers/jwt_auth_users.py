@@ -73,7 +73,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 async def get_current_user_optional(
     token: Optional[str] = Depends(oauth2_scheme),
 ) -> Optional[dict]:
-    # Si no llega token, devolvemos None y dejamos que el endpoint lo interprete
     if not token:
         return None
 
@@ -84,7 +83,6 @@ async def get_current_user_optional(
             return None
         return db_client.local.users.find_one({"username": username})
     except JWTError:
-        # Token inválido o expirado → devolvemos None
         return None
 
 
@@ -135,7 +133,6 @@ async def login_user(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
-    # 1) intenta leer JSON
     body = {}
     try:
         body = await request.json()
@@ -207,7 +204,6 @@ async def get_all_users(admin_user: dict = Depends(is_admin_user)):
     ]
 
 
-# Obtener historial de noticias analizadas por el usuario
 @auth_users.get("/me/history", response_model=List[Dict[str, Any]])
 async def get_my_history(
     sort_by: UserHistorySortOptions = Query(UserHistorySortOptions.date),

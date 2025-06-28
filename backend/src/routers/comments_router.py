@@ -65,26 +65,26 @@ async def delete_comment(
     comment_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    comment_id = ObjectId(comment_id)
-    comment = db_client.local.comments.find_one({"_id": comment_id})
+    comment_id_obj = ObjectId(comment_id)
+    comment = db_client.local.comments.find_one({"_id": comment_id_obj})
     if not comment or str(comment["user_id"]) != current_user["_id"]:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
-    db_client.local.comments.delete_one({"_id": comment_id})
+    db_client.local.comments.delete_one({"_id": comment_id_obj})
 
 
 @comments_router.patch("/{comment_id}", response_model=Comment)
 async def update_comment(
     comment_id: str,
-    text: str = Body(..., min_length=1, max_length=1000),
+    text: str = Body(..., embed=True, min_length=1, max_length=1000),
     current_user: dict = Depends(get_current_user),
 ):
-    comment_id = ObjectId(comment_id)
-    comment = db_client.local.comments.find_one({"_id": comment_id})
+    comment_id_obj = ObjectId(comment_id)
+    comment = db_client.local.comments.find_one({"_id": comment_id_obj})
     if not comment or str(comment["user_id"]) != current_user["_id"]:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     db_client.local.comments.update_one(
-        {"_id": comment_id},
+        {"_id": comment_id_obj},
         {"$set": {"text": text, "edited_at": datetime.now(timezone.utc)}},
     )
     comment.update({"text": text, "edited_at": datetime.now(timezone.utc)})
-    return {"_id": str(comment_id)}
+    return Comment.model_validate(comment)

@@ -1,5 +1,3 @@
-# tests/integration/test_auth_router.py
-
 import pytest
 from httpx import AsyncClient, ASGITransport
 from fastapi import status
@@ -14,7 +12,6 @@ import backend.src.services.user_service as user_service
 
 @pytest.mark.asyncio
 async def test_register_and_login(monkeypatch):
-    # --- register ---
     monkeypatch.setattr(user_service, "existing_username", lambda x: False)
     monkeypatch.setattr(user_service, "existing_email", lambda x: False)
 
@@ -29,7 +26,6 @@ async def test_register_and_login(monkeypatch):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        # Registro
         payload = {"username": "testuser", "email": "t@e.com", "password": "Aa12345"}
         res = await ac.post("/users/register", json=payload)
         assert res.status_code == status.HTTP_200_OK
@@ -37,7 +33,6 @@ async def test_register_and_login(monkeypatch):
         assert data["username"] == "testuser"
         assert data["user_id"] == "64b7f57e5f4c2a6f9d1e2b3c"
 
-        # --- login ---
         stored = {
             "_id": ObjectId("64b7f57e5f4c2a6f9d1e2b3c"),
             "username": "testuser",
@@ -174,9 +169,7 @@ async def test_update_me_conflict_username(monkeypatch):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         res = await ac.patch(
             "/users/me",
-            json={
-                "username": "otrouser"
-            },  # >=6 chars to pass Pydantic, but conflict stubbed
+            json={"username": "otrouser"},
             headers={"Authorization": f"Bearer {token}"},
         )
     assert res.status_code == status.HTTP_400_BAD_REQUEST
@@ -231,7 +224,6 @@ async def test_get_all_users_admin_and_forbidden(monkeypatch):
     arr = res.json()
     assert len(arr) == 2 and all("id" in u for u in arr)
 
-    # Usuario normal
     user = {**admin, "role": "user", "username": "norm"}
 
     class UsersNorm:
@@ -268,7 +260,7 @@ async def test_get_my_history(monkeypatch):
 
     class AnalysisColl:
         def find(self, q):
-            return []  # evita AttributeError en print()
+            return []
 
     dummy = type(
         "L", (), {"users": Users(), "analysis": AnalysisColl(), "news": None}

@@ -1,10 +1,8 @@
-# tests/unit/test_user_service.py
 import pytest
 from bson import ObjectId
 from backend.src.services import user_service
 
 
-# Datos de ejemplo
 mock_user_id = ObjectId("64b7f57e5f4c2a6f9d1e2b3c")
 mock_analysis_doc = {
     "_id": ObjectId("64b7f57e5f4c2a6f9d1e2b3d"),
@@ -86,7 +84,6 @@ def make_dummy_local(users_find_one=None, analysis_cursor=None, news_list=None):
         def find(self, q):
             return news_list or []
 
-    # objeto que sustituye a db_client.local
     return type(
         "L", (), {"users": UsersColl(), "analysis": AnalysisColl(), "news": NewsColl()}
     )()
@@ -129,7 +126,6 @@ def test_get_user_history_with_news(monkeypatch, sort_by, expected_field):
     fake_cursor = FakeCursor([mock_analysis_doc])
     dummy = make_dummy_local(analysis_cursor=fake_cursor, news_list=[mock_news_doc])
     monkeypatch.setattr(user_service.db_client, "local", dummy)
-    # stub de news_schema
     monkeypatch.setattr(
         user_service,
         "news_schema",
@@ -143,9 +139,7 @@ def test_get_user_history_with_news(monkeypatch, sort_by, expected_field):
         page=2,
         limit=5,
     )
-    # Debe llevar un elemento
     assert isinstance(history, list) and len(history) == 1
-    # Comprobamos campos
     entry = history[0]
     assert entry["analysis_id"] == str(mock_analysis_doc["_id"])
     assert entry["date_analyzed"] == mock_analysis_doc["date_analyzed"]
@@ -154,7 +148,6 @@ def test_get_user_history_with_news(monkeypatch, sort_by, expected_field):
         "id": str(mock_news_doc["_id"]),
         "title": mock_news_doc["title"],
     }
-    # Operaciones de cursor
     assert fake_cursor._ops["sort"][0] == expected_field
     assert fake_cursor._ops["skip"] == (2 - 1) * 5
     assert fake_cursor._ops["limit"] == 5

@@ -1,5 +1,3 @@
-# tests/integration/test_news_router.py
-
 import pytest
 from httpx import AsyncClient, ASGITransport
 from fastapi import status
@@ -13,7 +11,6 @@ import backend.src.services.news_manager_service as nm_service
 
 @pytest.mark.asyncio
 async def test_create_news_invokes_service(monkeypatch):
-    # Stubeamos la lógica para no tocar la BDD
     monkeypatch.setattr(
         nm_service.NewsManagerService,
         "create_or_update",
@@ -47,7 +44,6 @@ async def test_get_news_by_id_success(monkeypatch):
         "query_count": 1,
     }
 
-    # Stubeamos la llamada a Mongo y al schema
     class DummyColl:
         def find_one(self, q):
             return fake_doc
