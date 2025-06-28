@@ -18,7 +18,6 @@ const Profile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
-  // Nuevo estado: ¿hemos inicializado el form ya?
   const [formInitialized, setFormInitialized] = useState(false);
 
   useEffect(() => {
@@ -33,7 +32,7 @@ const Profile: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(resp.data);
-        // Solo setea el form si no lo hemos hecho ya
+
         if (!formInitialized) {
           setForm({
             username: resp.data.username,
@@ -49,11 +48,8 @@ const Profile: React.FC = () => {
       }
     };
     fetchProfile();
-    // Solo depende de navigate y setUser, no de user ni form
-    // eslint-disable-next-line
   }, [navigate, setUser]);
 
-  // Si cambias de usuario, resetea el formulario
   useEffect(() => {
     if (user && !formInitialized) {
       setForm({
@@ -63,7 +59,6 @@ const Profile: React.FC = () => {
       });
       setFormInitialized(true);
     }
-    // eslint-disable-next-line
   }, [user]);
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) =>

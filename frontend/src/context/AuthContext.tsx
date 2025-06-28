@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     axiosClient
-      .get("http://127.0.0.1:8000/api/users/me", {
+      .get("http://127.0.0.1:8000/users/me", {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {

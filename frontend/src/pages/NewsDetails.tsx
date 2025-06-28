@@ -1,4 +1,3 @@
-// src/pages/NewsDetail.tsx
 import React, { useState, useEffect, useContext, FormEvent } from "react";
 import { axiosClient } from "../services/axiosClient";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -45,12 +44,10 @@ const NewsDetail: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Para edición inline
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
 
   useEffect(() => {
-    // Cargar noticia
     (async () => {
       setLoadingNews(true);
       try {
@@ -63,7 +60,6 @@ const NewsDetail: React.FC = () => {
       }
     })();
 
-    // Cargar comentarios
     (async () => {
       setLoadingComments(true);
       try {
@@ -75,7 +71,6 @@ const NewsDetail: React.FC = () => {
         );
         setComments(res.data);
       } catch {
-        // Silenciar error
       } finally {
         setLoadingComments(false);
       }

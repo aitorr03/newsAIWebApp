@@ -46,7 +46,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      // Actualizamos el contexto y salimos de edición
+
       setUser(response.data);
       setIsEditing(false);
     } catch (err: any) {

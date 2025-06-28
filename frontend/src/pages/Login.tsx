@@ -1,4 +1,3 @@
-// src/pages/Login.tsx
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
@@ -18,7 +17,6 @@ const Login: React.FC = () => {
 
     try {
       if (isRegister) {
-        // Registro
         const resp = await axios.post("http://127.0.0.1:8000/users/register", {
           username,
           email,
@@ -33,7 +31,6 @@ const Login: React.FC = () => {
           created_at: new Date().toISOString(),
         });
       } else {
-        // Login
         const form = new URLSearchParams();
         form.append("username", username);
         form.append("password", password);
