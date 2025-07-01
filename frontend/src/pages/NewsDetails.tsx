@@ -9,6 +9,7 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/solid";
 import axios from "axios";
+
 interface News {
   id: string;
   title: string;
@@ -44,8 +45,7 @@ const NewsDetail: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState("");
+  const [editStates, setEditStates] = useState<Record<string, string>>({});
 
   useEffect(() => {
     (async () => {
@@ -69,8 +69,15 @@ const NewsDetail: React.FC = () => {
             params: { news_id: id, page: 1, limit: 50 },
           }
         );
-        setComments(res.data);
+
+        const transformed = res.data.map((c: any) => ({
+          ...c,
+          id: c._id,
+        }));
+
+        setComments(transformed);
       } catch {
+        setError("No se pudieron cargar los comentarios.");
       } finally {
         setLoadingComments(false);
       }
@@ -91,7 +98,13 @@ const NewsDetail: React.FC = () => {
           },
         }
       );
-      setComments([res.data, ...comments]);
+
+      const transformed = {
+        ...res.data,
+        id: (res.data as any)._id, // por si vuelve como _id
+      };
+
+      setComments([transformed, ...comments]);
       setNewComment("");
     } catch {
       setError("No se pudo enviar el comentario.");
@@ -99,28 +112,39 @@ const NewsDetail: React.FC = () => {
       setSubmitting(false);
     }
   };
+
   const startEdit = (c: Comment) => {
-    setEditingId(c.id);
-    setEditText(c.text);
+    setEditStates((prev) => ({ ...prev, [c.id]: c.text }));
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditText("");
+  const cancelEdit = (cid: string) => {
+    setEditStates((prev) => {
+      const newState = { ...prev };
+      delete newState[cid];
+      return newState;
+    });
   };
 
   const submitEdit = async (cid: string) => {
-    if (!editText.trim() || !user) return;
+    const text = editStates[cid];
+    if (!text?.trim() || !user) return;
+
     try {
       const res = await axiosClient.patch<Comment>(
         `/comments/${cid}`,
-        { text: editText },
+        { text },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
-      setComments((cs) => cs.map((c) => (c.id === cid ? res.data : c)));
-      cancelEdit();
+
+      const updatedComment = {
+        ...res.data,
+        id: (res.data as any)._id, // asegurar consistencia
+      };
+
+      setComments((cs) => cs.map((c) => (c.id === cid ? updatedComment : c)));
+      cancelEdit(cid);
     } catch {
       setError("No se pudo editar el comentario.");
     }
@@ -152,7 +176,6 @@ const NewsDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Breadcrumbs */}
         <nav className="flex text-sm text-blue-600 space-x-2">
           <Link to="/portal" className="hover:underline">
             Portal
@@ -165,7 +188,6 @@ const NewsDetail: React.FC = () => {
           <span className="text-gray-600">Detalle</span>
         </nav>
 
-        {/* Detalle de la noticia */}
         {news && (
           <article className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 space-y-4">
             <h1 className="text-3xl font-extrabold text-blue-700">
@@ -219,14 +241,11 @@ const NewsDetail: React.FC = () => {
           </article>
         )}
 
-        {/* Comentarios */}
         <section className="space-y-6">
           <h2 className="text-2xl font-semibold text-blue-700">Comentarios</h2>
 
-          {/* Nuevo comentario */}
           <form onSubmit={handleNewSubmit} className="space-y-4">
             {error && <p className="text-red-600">{error}</p>}
-
             <textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
@@ -239,7 +258,6 @@ const NewsDetail: React.FC = () => {
               disabled={!user}
               className="w-full bg-white border border-gray-300 rounded-lg p-4 focus:ring-2 focus:ring-blue-300 resize-none disabled:opacity-50"
             />
-
             {user ? (
               <button
                 type="submit"
@@ -262,90 +280,95 @@ const NewsDetail: React.FC = () => {
             )}
           </form>
 
-          {/* Loader o estado vacío */}
           {loadingComments ? (
             <p className="text-gray-600 text-center">Cargando comentarios…</p>
           ) : comments.length === 0 ? (
             <p className="text-gray-500">Sé el primero en comentar.</p>
           ) : (
             <ul className="space-y-4">
-              {comments.map((c) => (
-                <li
-                  key={c.id}
-                  className="bg-white/90 backdrop-blur-sm rounded-lg shadow p-4 space-y-2"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-semibold">
-                          {c.user_username.charAt(0).toUpperCase()}
-                        </span>
+              {comments.map((c) => {
+                const isEditing = c.id in editStates;
+                return (
+                  <li
+                    key={c.id}
+                    className="bg-white/90 backdrop-blur-sm rounded-lg shadow p-4 space-y-2"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold">
+                            {c.user_username.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-blue-700 text-sm">
+                            {c.user_username}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(c.created_at).toLocaleString("es-ES", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {c.edited_at && (
+                              <span className="ml-2 text-xs italic text-gray-400">
+                                (editado{" "}
+                                {new Date(c.edited_at).toLocaleTimeString(
+                                  "es-ES"
+                                )}
+                                )
+                              </span>
+                            )}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-blue-700 text-sm">
-                          {c.user_username}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(c.created_at).toLocaleString("es-ES", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                          {c.edited_at && (
-                            <span className="ml-2 text-xs italic text-gray-400">
-                              (editado{" "}
-                              {new Date(c.edited_at).toLocaleTimeString(
-                                "es-ES"
-                              )}
-                              )
-                            </span>
-                          )}
-                        </p>
-                      </div>
+                      {user && c.user_id === user.id && !isEditing && (
+                        <button
+                          onClick={() => startEdit(c)}
+                          className="text-gray-500 hover:text-gray-700"
+                          title="Editar comentario"
+                        >
+                          <PencilSquareIcon className="h-5 w-5" />
+                        </button>
+                      )}
                     </div>
-                    {/* Sólo aparece el lápiz en tus propios comentarios */}
-                    {user && c.user_id === user.id && editingId !== c.id && (
-                      <button
-                        onClick={() => startEdit(c)}
-                        className="text-gray-500 hover:text-gray-700"
-                        title="Editar comentario"
-                      >
-                        <PencilSquareIcon className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
 
-                  {/* Si editingId coincide, muestro textarea, si no, el texto */}
-                  {editingId === c.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        rows={2}
-                        className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-300 resize-none"
-                      />
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => submitEdit(c.id)}
-                          className="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700"
-                        >
-                          Guardar
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400"
-                        >
-                          Cancelar
-                        </button>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editStates[c.id]}
+                          onChange={(e) =>
+                            setEditStates((prev) => ({
+                              ...prev,
+                              [c.id]: e.target.value,
+                            }))
+                          }
+                          rows={2}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-300 resize-none"
+                        />
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => submitEdit(c.id)}
+                            className="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            onClick={() => cancelEdit(c.id)}
+                            className="bg-gray-300 px-4 py-1 rounded hover:bg-gray-400"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-800">{c.text}</p>
-                  )}
-                </li>
-              ))}
+                    ) : (
+                      <p className="text-gray-800">{c.text}</p>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

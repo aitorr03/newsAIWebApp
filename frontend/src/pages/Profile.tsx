@@ -3,7 +3,6 @@ import { axiosClient } from "../services/axiosClient";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import {
-  ExclamationCircleIcon,
   PencilSquareIcon,
   CheckCircleIcon,
   ArrowPathIcon,
@@ -17,7 +16,6 @@ const Profile: React.FC = () => {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
-
   const [formInitialized, setFormInitialized] = useState(false);
 
   useEffect(() => {
@@ -32,7 +30,6 @@ const Profile: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(resp.data);
-
         if (!formInitialized) {
           setForm({
             username: resp.data.username,
@@ -79,7 +76,7 @@ const Profile: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUser({ ...user!, username: form.username, email: form.email });
-      setEditing(false);
+      setEditing(false); // <<--- No se cierra la sesión aquí
     } catch (e: any) {
       setError(e.response?.data?.detail || "No se pudo actualizar.");
     } finally {
